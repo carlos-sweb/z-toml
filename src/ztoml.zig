@@ -45,6 +45,9 @@ const zvalue = @import("zvalue");
 const znumber = @import("znumber");
 const JSValue = zvalue.JSValue;
 
+/// Errors reported while parsing or serializing TOML values.
+/// OutOfMemory indicates allocation failure; other members describe invalid
+/// input, unsupported values or syntax, and serialization constraints.
 pub const TomlError = error{
     UnexpectedToken,
     UnexpectedEnd,
@@ -534,6 +537,9 @@ fn navigateArrayOfTables(allocator: Allocator, base: JSValue, segments: []const 
 /// Parses a TOML document (the SUBSET described in this module's doc
 /// comment) into a `JSValue` object tree, freeable with one top-level
 /// `.deinit()` like any other `JSValue` tree.
+/// `allocator` owns the returned tree; `text` is borrowed for this call.
+/// Release the returned value with `deinit()`. Malformed or unsupported input
+/// returns `TomlError`; allocation failure returns `OutOfMemory`.
 pub fn parse(allocator: Allocator, text: []const u8) TomlError!JSValue {
     var root = try JSValue.newObject(allocator);
     errdefer root.deinit();
@@ -579,7 +585,7 @@ pub fn parse(allocator: Allocator, text: []const u8) TomlError!JSValue {
 
 fn isUnserializable(v: JSValue) bool {
     return switch (v) {
-        .@"undefined", .@"null", .symbol, .function, .map, .set, .regex, .@"error", .promise => true,
+        .undefined, .null, .symbol, .function, .map, .set, .regex, .@"error", .promise => true,
         else => false,
     };
 }
@@ -781,6 +787,10 @@ fn writeTable(allocator: Allocator, buf: *std.ArrayList(u8), seen: *SeenStack, o
 /// `TomlError.Unserializable`. The inverse of `parse` for everything in
 /// this module's subset, modulo comments/formatting and the date/time
 /// asymmetry documented at the top of this file.
+/// `value` is borrowed and remains owned by the caller. `allocator` allocates
+/// the returned buffer; release it with `allocator.free()`.
+/// Cycles return `CircularStructure`; unsupported values return `Unserializable`.
+/// Allocation failure returns `OutOfMemory`.
 pub fn stringify(allocator: Allocator, value: JSValue) TomlError![]u8 {
     if (value != .object) return TomlError.Unserializable;
     var seen: SeenStack = .empty;

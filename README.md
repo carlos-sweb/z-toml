@@ -1,9 +1,10 @@
 # Z-TOML
 
-[![Zig Version](https://img.shields.io/badge/zig-0.16-orange.svg)](https://ziglang.org/)
+[![Zig Version](https://img.shields.io/badge/zig-0.17.0-orange.svg)](https://ziglang.org/)
+[![API docs](https://img.shields.io/badge/API-Zig_docs-blue.svg)](https://carlos-sweb.github.io/z-toml/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A **pure-Zig, dependency-free TOML *subset*** parser/stringifier over [z-value](https://github.com/carlos-sweb/z-value)'s `JSValue`, in Zig 0.16, part of the [z-*](https://github.com/carlos-sweb) micro-library ecosystem. Same shape as [z-json](https://github.com/carlos-sweb/z-json) and [z-yaml](https://github.com/carlos-sweb/z-yaml) — a TOML document, once parsed, is a normal `JSValue` tree and interoperates freely with JSON/YAML ones.
+A **pure-Zig, dependency-free TOML *subset*** parser/stringifier over [z-value](https://github.com/carlos-sweb/z-value)'s `JSValue`, in Zig 0.17.0, part of the [z-*](https://github.com/carlos-sweb) micro-library ecosystem. Same shape as [z-json](https://github.com/carlos-sweb/z-json) and [z-yaml](https://github.com/carlos-sweb/z-yaml) — a TOML document, once parsed, is a normal `JSValue` tree and interoperates freely with JSON/YAML ones.
 
 ## Why a subset
 
@@ -54,3 +55,29 @@ defer doc.deinit();
 const out = try ztoml.stringify(allocator, doc);
 defer allocator.free(out);
 ```
+
+## Dependencies and validation
+
+Requires Zig 0.17.0 or newer. Dependencies are downloaded from the
+`carlos-sweb` GitHub releases, with URLs and package hashes pinned in
+`build.zig.zon`. No sibling checkouts are required.
+
+```sh
+zig build test --summary all
+```
+
+## API documentation
+
+[Browse the generated Zig API documentation](https://carlos-sweb.github.io/z-toml/).
+
+Generate the same documentation locally with Zig 0.17.0:
+
+```sh
+zig build docs
+python3 -m http.server 8000 --directory zig-out/docs
+```
+
+Open `http://localhost:8000/` to browse it. GitHub Actions runs the tests,
+generates the native Zig docs, and publishes `zig-out/docs` to GitHub Pages
+automatically on every push to `master`. Pull requests also validate tests
+and documentation generation.
