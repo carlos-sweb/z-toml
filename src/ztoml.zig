@@ -390,7 +390,7 @@ const Parser = struct {
             if (self.atEnd()) return TomlError.UnexpectedEnd;
             const val = try self.parseValue();
             errdefer val.deinit();
-            _ = try arr.array.value.push(val);
+            _ = arr.array.value.push(val) catch return TomlError.OutOfMemory;
             self.skipWhitespaceAndComments();
             if (self.atEnd()) return TomlError.UnexpectedEnd;
             if (self.peek() == ',') {
@@ -530,7 +530,7 @@ fn navigateArrayOfTables(allocator: Allocator, base: JSValue, segments: []const 
         };
     }
     const table = try JSValue.newObject(allocator);
-    _ = try arr.array.value.push(table);
+    _ = arr.array.value.push(table) catch return TomlError.OutOfMemory;
     return table;
 }
 
