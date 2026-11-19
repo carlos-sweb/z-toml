@@ -390,7 +390,7 @@ const Parser = struct {
             if (self.atEnd()) return TomlError.UnexpectedEnd;
             const val = try self.parseValue();
             errdefer val.deinit();
-            _ = arr.array.value.push(val) catch return TomlError.OutOfMemory;
+            _ = arr.asArray().value.push(val) catch return TomlError.OutOfMemory;
             self.skipWhitespaceAndComments();
             if (self.atEnd()) return TomlError.UnexpectedEnd;
             if (self.peek() == ',') {
@@ -476,7 +476,7 @@ fn freeSegs(allocator: Allocator, segs: []const []const u8) void {
 fn setAtPath(allocator: Allocator, obj: JSValue, segs: []const []const u8, value: JSValue) TomlError!void {
     std.debug.assert(segs.len > 0);
     const parent = if (segs.len == 1) obj else try navigateCreatePath(allocator, obj, segs[0 .. segs.len - 1]);
-    parent.object.value.set(segs[segs.len - 1], value) catch |e| switch (e) {
+    parent.asObject().value.set(segs[segs.len - 1], value) catch |e| switch (e) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable, // a table built by this parser is never frozen
     };
@@ -489,19 +489,19 @@ fn setAtPath(allocator: Allocator, obj: JSValue, segs: []const []const u8, value
 fn navigateCreatePath(allocator: Allocator, base: JSValue, segments: []const []const u8) TomlError!JSValue {
     var cur = base;
     for (segments) |seg| {
-        if (cur.object.value.get(seg)) |existing| {
-            if (existing == .object) {
+        if (cur.asObject().value.get(seg)) |existing| {
+            if (existing.isObject()) {
                 cur = existing;
-            } else if (existing == .array) {
-                const items = existing.array.value.toSlice();
-                if (items.len == 0 or items[items.len - 1] != .object) return TomlError.DuplicateKey;
+            } else if (existing.isArray()) {
+                const items = existing.asArray().value.toSlice();
+                if (items.len == 0 or !items[items.len - 1].isObject()) return TomlError.DuplicateKey;
                 cur = items[items.len - 1];
             } else {
                 return TomlError.DuplicateKey;
             }
         } else {
             const obj = try JSValue.newObject(allocator);
-            cur.object.value.set(seg, obj) catch |e| switch (e) {
+            cur.asObject().value.set(seg, obj) catch |e| switch (e) {
                 error.OutOfMemory => return error.OutOfMemory,
                 else => unreachable,
             };
@@ -519,18 +519,18 @@ fn navigateArrayOfTables(allocator: Allocator, base: JSValue, segments: []const 
     const parent = try navigateCreatePath(allocator, base, segments[0 .. segments.len - 1]);
     const last = segments[segments.len - 1];
     var arr: JSValue = undefined;
-    if (parent.object.value.get(last)) |existing| {
-        if (existing != .array) return TomlError.DuplicateKey;
+    if (parent.asObject().value.get(last)) |existing| {
+        if (!existing.isArray()) return TomlError.DuplicateKey;
         arr = existing;
     } else {
         arr = try JSValue.newArray(allocator);
-        parent.object.value.set(last, arr) catch |e| switch (e) {
+        parent.asObject().value.set(last, arr) catch |e| switch (e) {
             error.OutOfMemory => return error.OutOfMemory,
             else => unreachable,
         };
     }
     const table = try JSValue.newObject(allocator);
-    _ = arr.array.value.push(table) catch return TomlError.OutOfMemory;
+    _ = arr.asArray().value.push(table) catch return TomlError.OutOfMemory;
     return table;
 }
 
@@ -584,7 +584,7 @@ pub fn parse(allocator: Allocator, text: []const u8) TomlError!JSValue {
 // ============================================================================
 
 fn isUnserializable(v: JSValue) bool {
-    return switch (v) {
+    return switch (v.tag()) {
         .undefined, .null, .symbol, .function, .map, .set, .regex, .@"error", .promise => true,
         else => false,
     };
@@ -626,10 +626,10 @@ fn writeKey(allocator: Allocator, buf: *std.ArrayList(u8), key: []const u8) !voi
 /// An array counts as an "array of tables" (renderable as `[[path]]`
 /// sections) when non-empty and every element is a plain object.
 fn isArrayOfTables(v: JSValue) bool {
-    const items = v.array.value.toSlice();
+    const items = v.asArray().value.toSlice();
     if (items.len == 0) return false;
     for (items) |item| {
-        if (item != .object) return false;
+        if (!item.isObject()) return false;
     }
     return true;
 }
@@ -649,7 +649,7 @@ fn seenContains(seen: *const SeenStack, ptr: usize) bool {
 /// object/array-of-tables to its own section).
 fn writeValue(allocator: Allocator, buf: *std.ArrayList(u8), seen: *SeenStack, value: JSValue) TomlError!void {
     if (isUnserializable(value)) return TomlError.Unserializable;
-    switch (value) {
+    switch (value.unpack()) {
         .boolean => |b| try buf.appendSlice(allocator, if (b) "true" else "false"),
         .number => |n| {
             if (std.math.isNan(n)) {
@@ -731,7 +731,7 @@ fn writeDottedPath(allocator: Allocator, buf: *std.ArrayList(u8), path: []const 
 /// section -- matching how real TOML requires a table's direct keys to
 /// precede any subtable.
 fn writeTable(allocator: Allocator, buf: *std.ArrayList(u8), seen: *SeenStack, obj: JSValue, path: []const []const u8, depth: usize) TomlError!void {
-    const box = obj.object;
+    const box = obj.asObject();
     const addr = @intFromPtr(box);
     if (seenContains(seen, addr)) return TomlError.CircularStructure;
     try seen.append(allocator, addr);
@@ -743,8 +743,8 @@ fn writeTable(allocator: Allocator, buf: *std.ArrayList(u8), seen: *SeenStack, o
     for (keys) |key| {
         if (key.len > 0 and key[0] == 0) continue;
         const v = box.value.get(key).?;
-        if (v == .object) continue;
-        if (v == .array and isArrayOfTables(v)) continue;
+        if (v.isObject()) continue;
+        if (v.isArray() and isArrayOfTables(v)) continue;
         if (isUnserializable(v)) continue;
         try writeIndent(allocator, buf, depth);
         try writeKey(allocator, buf, key);
@@ -756,7 +756,7 @@ fn writeTable(allocator: Allocator, buf: *std.ArrayList(u8), seen: *SeenStack, o
     for (keys) |key| {
         if (key.len > 0 and key[0] == 0) continue;
         const v = box.value.get(key).?;
-        if (v == .object) {
+        if (v.isObject()) {
             var child_path: std.ArrayList([]const u8) = .empty;
             defer child_path.deinit(allocator);
             try child_path.appendSlice(allocator, path);
@@ -766,12 +766,12 @@ fn writeTable(allocator: Allocator, buf: *std.ArrayList(u8), seen: *SeenStack, o
             try writeDottedPath(allocator, buf, child_path.items);
             try buf.appendSlice(allocator, "]\n");
             try writeTable(allocator, buf, seen, v, child_path.items, depth);
-        } else if (v == .array and isArrayOfTables(v)) {
+        } else if (v.isArray() and isArrayOfTables(v)) {
             var child_path: std.ArrayList([]const u8) = .empty;
             defer child_path.deinit(allocator);
             try child_path.appendSlice(allocator, path);
             try child_path.append(allocator, key);
-            for (v.array.value.toSlice()) |elem| {
+            for (v.asArray().value.toSlice()) |elem| {
                 try buf.append(allocator, '\n');
                 try buf.appendSlice(allocator, "[[");
                 try writeDottedPath(allocator, buf, child_path.items);
@@ -792,7 +792,7 @@ fn writeTable(allocator: Allocator, buf: *std.ArrayList(u8), seen: *SeenStack, o
 /// Cycles return `CircularStructure`; unsupported values return `Unserializable`.
 /// Allocation failure returns `OutOfMemory`.
 pub fn stringify(allocator: Allocator, value: JSValue) TomlError![]u8 {
-    if (value != .object) return TomlError.Unserializable;
+    if (!value.isObject()) return TomlError.Unserializable;
     var seen: SeenStack = .empty;
     defer seen.deinit(allocator);
     var buf: std.ArrayList(u8) = .empty;
