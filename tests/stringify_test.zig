@@ -8,9 +8,9 @@ test "stringify scalars at the root" {
     const allocator = testing.allocator;
     var obj = try JSValue.newObject(allocator);
     defer obj.deinit();
-    try obj.object.value.set("name", try JSValue.newString(allocator, "app"));
-    try obj.object.value.set("port", JSValue.fromNumber(8080));
-    try obj.object.value.set("active", JSValue.fromBool(true));
+    try obj.asObject().value.set("name", try JSValue.newString(allocator, "app"));
+    try obj.asObject().value.set("port", JSValue.fromNumber(8080));
+    try obj.asObject().value.set("active", JSValue.fromBool(true));
 
     const out = try ztoml.stringify(allocator, obj);
     defer allocator.free(out);
@@ -23,10 +23,10 @@ test "stringify a nested object as a [table] section, after root scalars" {
     const allocator = testing.allocator;
     var obj = try JSValue.newObject(allocator);
     defer obj.deinit();
-    try obj.object.value.set("name", try JSValue.newString(allocator, "app"));
+    try obj.asObject().value.set("name", try JSValue.newString(allocator, "app"));
     var server = try JSValue.newObject(allocator);
-    try server.object.value.set("host", try JSValue.newString(allocator, "localhost"));
-    try obj.object.value.set("server", server);
+    try server.asObject().value.set("host", try JSValue.newString(allocator, "localhost"));
+    try obj.asObject().value.set("server", server);
 
     const out = try ztoml.stringify(allocator, obj);
     defer allocator.free(out);
@@ -42,12 +42,12 @@ test "stringify an array of objects as [[table]] sections" {
     defer obj.deinit();
     var arr = try JSValue.newArray(allocator);
     var a = try JSValue.newObject(allocator);
-    try a.object.value.set("name", try JSValue.newString(allocator, "apple"));
-    _ = try arr.array.value.push(a);
+    try a.asObject().value.set("name", try JSValue.newString(allocator, "apple"));
+    _ = try arr.asArray().value.push(a);
     var b = try JSValue.newObject(allocator);
-    try b.object.value.set("name", try JSValue.newString(allocator, "banana"));
-    _ = try arr.array.value.push(b);
-    try obj.object.value.set("fruit", arr);
+    try b.asObject().value.set("name", try JSValue.newString(allocator, "banana"));
+    _ = try arr.asArray().value.push(b);
+    try obj.asObject().value.set("fruit", arr);
 
     const out = try ztoml.stringify(allocator, obj);
     defer allocator.free(out);
@@ -61,9 +61,9 @@ test "stringify an array of scalars inline" {
     var obj = try JSValue.newObject(allocator);
     defer obj.deinit();
     var arr = try JSValue.newArray(allocator);
-    _ = try arr.array.value.push(JSValue.fromNumber(1));
-    _ = try arr.array.value.push(JSValue.fromNumber(2));
-    try obj.object.value.set("nums", arr);
+    _ = try arr.asArray().value.push(JSValue.fromNumber(1));
+    _ = try arr.asArray().value.push(JSValue.fromNumber(2));
+    try obj.asObject().value.set("nums", arr);
 
     const out = try ztoml.stringify(allocator, obj);
     defer allocator.free(out);
@@ -79,8 +79,8 @@ test "undefined/function object properties are omitted, matching JSON.stringify"
     const allocator = testing.allocator;
     var obj = try JSValue.newObject(allocator);
     defer obj.deinit();
-    try obj.object.value.set("a", JSValue.fromNumber(1));
-    try obj.object.value.set("skip", JSValue.UNDEFINED);
+    try obj.asObject().value.set("a", JSValue.fromNumber(1));
+    try obj.asObject().value.set("skip", JSValue.UNDEFINED);
 
     const out = try ztoml.stringify(allocator, obj);
     defer allocator.free(out);

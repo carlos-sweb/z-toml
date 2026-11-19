@@ -14,12 +14,12 @@ test "root-level key/value pairs: bool/number/string typing" {
         \\disabled = false
     );
     defer doc.deinit();
-    try testing.expect(doc == .object);
-    try testing.expectEqualStrings("app", doc.object.value.get("name").?.string.value.data);
-    try testing.expectEqual(@as(f64, 8080), doc.object.value.get("port").?.number);
-    try testing.expectEqual(@as(f64, 3.14), doc.object.value.get("ratio").?.number);
-    try testing.expectEqual(true, doc.object.value.get("active").?.boolean);
-    try testing.expectEqual(false, doc.object.value.get("disabled").?.boolean);
+    try testing.expect(doc.isObject());
+    try testing.expectEqualStrings("app", doc.asObject().value.get("name").?.asString().value.data);
+    try testing.expectEqual(@as(f64, 8080), doc.asObject().value.get("port").?.asNumber());
+    try testing.expectEqual(@as(f64, 3.14), doc.asObject().value.get("ratio").?.asNumber());
+    try testing.expectEqual(true, doc.asObject().value.get("active").?.asBool());
+    try testing.expectEqual(false, doc.asObject().value.get("disabled").?.asBool());
 }
 
 test "comments and blank lines are ignored" {
@@ -32,8 +32,8 @@ test "comments and blank lines are ignored" {
         \\b = 2
     );
     defer doc.deinit();
-    try testing.expectEqual(@as(f64, 1), doc.object.value.get("a").?.number);
-    try testing.expectEqual(@as(f64, 2), doc.object.value.get("b").?.number);
+    try testing.expectEqual(@as(f64, 1), doc.asObject().value.get("a").?.asNumber());
+    try testing.expectEqual(@as(f64, 2), doc.asObject().value.get("b").?.asNumber());
 }
 
 test "integers: underscores and hex/octal/binary" {
@@ -46,11 +46,11 @@ test "integers: underscores and hex/octal/binary" {
         \\bin = 0b1010
     );
     defer doc.deinit();
-    try testing.expectEqual(@as(f64, 1000000), doc.object.value.get("decimal").?.number);
-    try testing.expectEqual(@as(f64, -42), doc.object.value.get("neg").?.number);
-    try testing.expectEqual(@as(f64, 255), doc.object.value.get("hex").?.number);
-    try testing.expectEqual(@as(f64, 15), doc.object.value.get("oct").?.number);
-    try testing.expectEqual(@as(f64, 10), doc.object.value.get("bin").?.number);
+    try testing.expectEqual(@as(f64, 1000000), doc.asObject().value.get("decimal").?.asNumber());
+    try testing.expectEqual(@as(f64, -42), doc.asObject().value.get("neg").?.asNumber());
+    try testing.expectEqual(@as(f64, 255), doc.asObject().value.get("hex").?.asNumber());
+    try testing.expectEqual(@as(f64, 15), doc.asObject().value.get("oct").?.asNumber());
+    try testing.expectEqual(@as(f64, 10), doc.asObject().value.get("bin").?.asNumber());
 }
 
 test "floats: exponents, underscores, inf/nan" {
@@ -63,25 +63,25 @@ test "floats: exponents, underscores, inf/nan" {
         \\e = nan
     );
     defer doc.deinit();
-    try testing.expectEqual(@as(f64, 1.5e10), doc.object.value.get("a").?.number);
-    try testing.expectEqual(@as(f64, 1000.5), doc.object.value.get("b").?.number);
-    try testing.expect(std.math.isPositiveInf(doc.object.value.get("c").?.number));
-    try testing.expect(std.math.isNegativeInf(doc.object.value.get("d").?.number));
-    try testing.expect(std.math.isNan(doc.object.value.get("e").?.number));
+    try testing.expectEqual(@as(f64, 1.5e10), doc.asObject().value.get("a").?.asNumber());
+    try testing.expectEqual(@as(f64, 1000.5), doc.asObject().value.get("b").?.asNumber());
+    try testing.expect(std.math.isPositiveInf(doc.asObject().value.get("c").?.asNumber()));
+    try testing.expect(std.math.isNegativeInf(doc.asObject().value.get("d").?.asNumber()));
+    try testing.expect(std.math.isNan(doc.asObject().value.get("e").?.asNumber()));
 }
 
 test "basic strings decode JSON-style escapes" {
     const allocator = testing.allocator;
     var doc = try ztoml.parse(allocator, "s = \"a\\nb\\tc\\\"d\\\\e\"");
     defer doc.deinit();
-    try testing.expectEqualStrings("a\nb\tc\"d\\e", doc.object.value.get("s").?.string.value.data);
+    try testing.expectEqualStrings("a\nb\tc\"d\\e", doc.asObject().value.get("s").?.asString().value.data);
 }
 
 test "literal strings are verbatim (no escapes)" {
     const allocator = testing.allocator;
     var doc = try ztoml.parse(allocator, "s = 'a\\nb'");
     defer doc.deinit();
-    try testing.expectEqualStrings("a\\nb", doc.object.value.get("s").?.string.value.data);
+    try testing.expectEqualStrings("a\\nb", doc.asObject().value.get("s").?.asString().value.data);
 }
 
 test "multi-line strings are an explicit UnsupportedFeature, not silently wrong" {
@@ -94,9 +94,9 @@ test "dotted keys create nested tables" {
     const allocator = testing.allocator;
     var doc = try ztoml.parse(allocator, "a.b.c = 1");
     defer doc.deinit();
-    const a = doc.object.value.get("a").?;
-    const b = a.object.value.get("b").?;
-    try testing.expectEqual(@as(f64, 1), b.object.value.get("c").?.number);
+    const a = doc.asObject().value.get("a").?;
+    const b = a.asObject().value.get("b").?;
+    try testing.expectEqual(@as(f64, 1), b.asObject().value.get("c").?.asNumber());
 }
 
 test "standard table headers, including dotted ones" {
@@ -110,11 +110,11 @@ test "standard table headers, including dotted ones" {
         \\enabled = true
     );
     defer doc.deinit();
-    const server = doc.object.value.get("server").?;
-    try testing.expectEqualStrings("localhost", server.object.value.get("host").?.string.value.data);
-    try testing.expectEqual(@as(f64, 8080), server.object.value.get("port").?.number);
-    const tls = server.object.value.get("tls").?;
-    try testing.expectEqual(true, tls.object.value.get("enabled").?.boolean);
+    const server = doc.asObject().value.get("server").?;
+    try testing.expectEqualStrings("localhost", server.asObject().value.get("host").?.asString().value.data);
+    try testing.expectEqual(@as(f64, 8080), server.asObject().value.get("port").?.asNumber());
+    const tls = server.asObject().value.get("tls").?;
+    try testing.expectEqual(true, tls.asObject().value.get("enabled").?.asBool());
 }
 
 test "arrays of tables" {
@@ -127,12 +127,12 @@ test "arrays of tables" {
         \\name = "banana"
     );
     defer doc.deinit();
-    const fruit = doc.object.value.get("fruit").?;
-    try testing.expect(fruit == .array);
-    const items = fruit.array.value.toSlice();
+    const fruit = doc.asObject().value.get("fruit").?;
+    try testing.expect(fruit.isArray());
+    const items = fruit.asArray().value.toSlice();
     try testing.expectEqual(@as(usize, 2), items.len);
-    try testing.expectEqualStrings("apple", items[0].object.value.get("name").?.string.value.data);
-    try testing.expectEqualStrings("banana", items[1].object.value.get("name").?.string.value.data);
+    try testing.expectEqualStrings("apple", items[0].asObject().value.get("name").?.asString().value.data);
+    try testing.expectEqualStrings("banana", items[1].asObject().value.get("name").?.asString().value.data);
 }
 
 test "a table nested under the last entry of an array of tables" {
@@ -145,10 +145,10 @@ test "a table nested under the last entry of an array of tables" {
         \\color = "red"
     );
     defer doc.deinit();
-    const items = doc.object.value.get("fruit").?.array.value.toSlice();
+    const items = doc.asObject().value.get("fruit").?.asArray().value.toSlice();
     try testing.expectEqual(@as(usize, 1), items.len);
-    const physical = items[0].object.value.get("physical").?;
-    try testing.expectEqualStrings("red", physical.object.value.get("color").?.string.value.data);
+    const physical = items[0].asObject().value.get("physical").?;
+    try testing.expectEqualStrings("red", physical.asObject().value.get("color").?.asString().value.data);
 }
 
 test "arrays: multi-line with comments and trailing comma" {
@@ -161,28 +161,28 @@ test "arrays: multi-line with comments and trailing comma" {
         \\]
     );
     defer doc.deinit();
-    const items = doc.object.value.get("nums").?.array.value.toSlice();
+    const items = doc.asObject().value.get("nums").?.asArray().value.toSlice();
     try testing.expectEqual(@as(usize, 3), items.len);
-    try testing.expectEqual(@as(f64, 1), items[0].number);
-    try testing.expectEqual(@as(f64, 3), items[2].number);
+    try testing.expectEqual(@as(f64, 1), items[0].asNumber());
+    try testing.expectEqual(@as(f64, 3), items[2].asNumber());
 }
 
 test "inline tables, including nested dotted keys" {
     const allocator = testing.allocator;
     var doc = try ztoml.parse(allocator, "point = { x = 1, y = 2 }");
     defer doc.deinit();
-    const point = doc.object.value.get("point").?;
-    try testing.expectEqual(@as(f64, 1), point.object.value.get("x").?.number);
-    try testing.expectEqual(@as(f64, 2), point.object.value.get("y").?.number);
+    const point = doc.asObject().value.get("point").?;
+    try testing.expectEqual(@as(f64, 1), point.asObject().value.get("x").?.asNumber());
+    try testing.expectEqual(@as(f64, 2), point.asObject().value.get("y").?.asNumber());
 }
 
 test "date/time-shaped scalars parse as plain strings (documented gap)" {
     const allocator = testing.allocator;
     var doc = try ztoml.parse(allocator, "d = 1979-05-27T07:32:00Z");
     defer doc.deinit();
-    const d = doc.object.value.get("d").?;
-    try testing.expect(d == .string);
-    try testing.expectEqualStrings("1979-05-27T07:32:00Z", d.string.value.data);
+    const d = doc.asObject().value.get("d").?;
+    try testing.expect(d.isString());
+    try testing.expectEqualStrings("1979-05-27T07:32:00Z", d.asString().value.data);
 }
 
 test "invalid input is a catchable parse error, not a crash" {

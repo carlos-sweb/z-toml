@@ -29,13 +29,13 @@ test "parse -> stringify -> parse is stable (Cargo.toml-shaped document)" {
     var doc2 = try ztoml.parse(allocator, out);
     defer doc2.deinit();
 
-    try testing.expectEqualStrings("app", doc2.object.value.get("name").?.string.value.data);
-    try testing.expectEqualStrings("1.0.0", doc2.object.value.get("version").?.string.value.data);
-    const server = doc2.object.value.get("server").?;
-    try testing.expectEqualStrings("localhost", server.object.value.get("host").?.string.value.data);
-    try testing.expectEqual(@as(f64, 8080), server.object.value.get("port").?.number);
-    const fruit = doc2.object.value.get("fruit").?.array.value.toSlice();
+    try testing.expectEqualStrings("app", doc2.asObject().value.get("name").?.asString().value.data);
+    try testing.expectEqualStrings("1.0.0", doc2.asObject().value.get("version").?.asString().value.data);
+    const server = doc2.asObject().value.get("server").?;
+    try testing.expectEqualStrings("localhost", server.asObject().value.get("host").?.asString().value.data);
+    try testing.expectEqual(@as(f64, 8080), server.asObject().value.get("port").?.asNumber());
+    const fruit = doc2.asObject().value.get("fruit").?.asArray().value.toSlice();
     try testing.expectEqual(@as(usize, 2), fruit.len);
-    try testing.expectEqualStrings("apple", fruit[0].object.value.get("name").?.string.value.data);
-    try testing.expectEqualStrings("banana", fruit[1].object.value.get("name").?.string.value.data);
+    try testing.expectEqualStrings("apple", fruit[0].asObject().value.get("name").?.asString().value.data);
+    try testing.expectEqualStrings("banana", fruit[1].asObject().value.get("name").?.asString().value.data);
 }

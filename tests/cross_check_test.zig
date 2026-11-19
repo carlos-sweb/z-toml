@@ -36,25 +36,25 @@ test "cross-check: sample document matches Python tomllib's structure" {
     var doc = try ztoml.parse(allocator, sample);
     defer doc.deinit();
 
-    try testing.expectEqualStrings("z-toml", doc.object.value.get("name").?.string.value.data);
-    try testing.expectEqualStrings("0.1.0", doc.object.value.get("version").?.string.value.data);
-    try testing.expectEqual(@as(f64, 2021), doc.object.value.get("edition").?.number);
-    try testing.expectEqual(@as(f64, 4.5), doc.object.value.get("rating").?.number);
+    try testing.expectEqualStrings("z-toml", doc.asObject().value.get("name").?.asString().value.data);
+    try testing.expectEqualStrings("0.1.0", doc.asObject().value.get("version").?.asString().value.data);
+    try testing.expectEqual(@as(f64, 2021), doc.asObject().value.get("edition").?.asNumber());
+    try testing.expectEqual(@as(f64, 4.5), doc.asObject().value.get("rating").?.asNumber());
 
-    const keywords = doc.object.value.get("keywords").?.array.value.toSlice();
+    const keywords = doc.asObject().value.get("keywords").?.asArray().value.toSlice();
     try testing.expectEqual(@as(usize, 3), keywords.len);
-    try testing.expectEqualStrings("toml", keywords[0].string.value.data);
-    try testing.expectEqualStrings("zig", keywords[2].string.value.data);
+    try testing.expectEqualStrings("toml", keywords[0].asString().value.data);
+    try testing.expectEqualStrings("zig", keywords[2].asString().value.data);
 
-    const authors = doc.object.value.get("package").?.object.value.get("metadata").?.object.value.get("authors").?.array.value.toSlice();
-    try testing.expectEqualStrings("carlos", authors[0].string.value.data);
+    const authors = doc.asObject().value.get("package").?.asObject().value.get("metadata").?.asObject().value.get("authors").?.asArray().value.toSlice();
+    try testing.expectEqualStrings("carlos", authors[0].asString().value.data);
 
-    const zvalue_dep = doc.object.value.get("dependencies").?.object.value.get("zvalue").?;
-    try testing.expectEqualStrings("../z-value", zvalue_dep.object.value.get("path").?.string.value.data);
-    try testing.expectEqualStrings("0.1.0", zvalue_dep.object.value.get("version").?.string.value.data);
+    const zvalue_dep = doc.asObject().value.get("dependencies").?.asObject().value.get("zvalue").?;
+    try testing.expectEqualStrings("../z-value", zvalue_dep.asObject().value.get("path").?.asString().value.data);
+    try testing.expectEqualStrings("0.1.0", zvalue_dep.asObject().value.get("version").?.asString().value.data);
 
-    const bins = doc.object.value.get("bin").?.array.value.toSlice();
+    const bins = doc.asObject().value.get("bin").?.asArray().value.toSlice();
     try testing.expectEqual(@as(usize, 2), bins.len);
-    try testing.expectEqualStrings("cli", bins[0].object.value.get("name").?.string.value.data);
-    try testing.expectEqualStrings("worker", bins[1].object.value.get("name").?.string.value.data);
+    try testing.expectEqualStrings("cli", bins[0].asObject().value.get("name").?.asString().value.data);
+    try testing.expectEqualStrings("worker", bins[1].asObject().value.get("name").?.asString().value.data);
 }
